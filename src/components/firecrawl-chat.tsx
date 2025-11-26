@@ -46,7 +46,9 @@ export function FirecrawlChat() {
             <Flame className='w-5 h-5 text-orange-500' />
           </div>
           <div>
-            <h1 className='font-semibold text-foreground'>Firecrawl Support</h1>
+            <h1 className='font-semibold text-foreground'>
+              Firecrawl Support Assistant
+            </h1>
             <p className='text-sm text-muted-foreground'>
               Ask me anything about Firecrawl
             </p>
