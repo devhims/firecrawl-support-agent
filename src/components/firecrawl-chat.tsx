@@ -5,11 +5,12 @@ import type React from 'react';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { useState, useRef, useEffect } from 'react';
-import { Send, Flame, Loader2, Moon, Sun } from 'lucide-react';
+import { Send, Loader2, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useTheme } from './theme-provider';
 import { MarkdownRenderer } from './markdown-renderer';
+import { FirecrawlLogoIcon } from './firecrawl-logo-icon';
 
 export function FirecrawlChat() {
   const [input, setInput] = useState('');
@@ -43,7 +44,7 @@ export function FirecrawlChat() {
       <header className='flex items-center justify-between px-6 py-4 border-b border-border'>
         <div className='flex items-center gap-3'>
           <div className='flex items-center justify-center w-10 h-10 rounded-lg bg-orange-500/10'>
-            <Flame className='w-5 h-5 text-orange-500' />
+            <FirecrawlLogoIcon size={28} />
           </div>
           <div>
             <h1 className='font-semibold text-foreground'>
@@ -73,7 +74,7 @@ export function FirecrawlChat() {
         {messages.length === 0 ? (
           <div className='flex flex-col items-center justify-center h-full text-center'>
             <div className='flex items-center justify-center w-16 h-16 rounded-2xl bg-orange-500/10 mb-4'>
-              <Flame className='w-8 h-8 text-orange-500' />
+              <FirecrawlLogoIcon size={40} />
             </div>
             <h2 className='text-xl font-semibold text-foreground mb-2'>
               How can I help you today?
@@ -95,7 +96,7 @@ export function FirecrawlChat() {
               >
                 {message.role === 'assistant' && (
                   <div className='flex-shrink-0 w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center'>
-                    <Flame className='w-4 h-4 text-orange-500' />
+                    <FirecrawlLogoIcon size={26} />
                   </div>
                 )}
                 <div
@@ -152,7 +153,7 @@ export function FirecrawlChat() {
             {isLoading && messages[messages.length - 1]?.role === 'user' && (
               <div className='flex gap-3'>
                 <div className='flex-shrink-0 w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center'>
-                  <Flame className='w-4 h-4 text-orange-500' />
+                  <FirecrawlLogoIcon size={26} />
                 </div>
                 <div className='bg-muted rounded-2xl px-4 py-3'>
                   <div className='flex items-center gap-2'>
