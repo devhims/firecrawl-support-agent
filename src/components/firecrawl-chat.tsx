@@ -48,7 +48,7 @@ export function FirecrawlChat() {
           </div>
           <div>
             <h1 className='font-semibold text-foreground'>
-              Firecrawl Support Assistant
+              Firecrawl Support Agent
             </h1>
             <p className='text-sm text-muted-foreground'>
               Ask me anything about Firecrawl
@@ -156,10 +156,9 @@ export function FirecrawlChat() {
                           (part as any).state === 'output-available'
                       )
                       .map((part, idx) => {
-                        const output =
-                          (part as any).output as {
-                            links?: { label: string; href: string }[];
-                          };
+                        const output = (part as any).output as {
+                          links?: { label: string; href: string }[];
+                        };
                         const links = output?.links ?? [];
                         if (links.length === 0) return null;
                         return (

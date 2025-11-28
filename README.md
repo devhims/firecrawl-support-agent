@@ -1,36 +1,75 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Firecrawl Support Agent
 
-## Getting Started
+An agentic support assistant for Firecrawl. It runs on Vercel AI SDK (OpenAI GPT‑4.1), autonomously calls a docs search tool to pull live answers from Firecrawl documentation, and streams responses to the UI with markdown, code, and doc links.
 
-First, run the development server:
+## How it works (agent)
+
+- **Agent loop**: `streamText` runs with `stopWhen: stepCountIs(3)`, so the model can call tools, read results, and continue up to 3 steps (multi-step tool use).
+- **Tool**: `queryFirecrawlDocs` POSTs to the Mintlify Firecrawl assistant (`https://leaves.mintlify.com/api/assistant/firecrawl/message`). We stream the response, collect text tokens, and parse suggestion fences to surface doc links.
+- **UI**: `firecrawl-chat.tsx` streams messages, renders markdown/code, and shows doc links after the assistant’s reply. Loading states show model “thinking” and doc-search spinners.
+- **Branding**: Animated Firecrawl flame icon (`FirecrawlLogoIcon`) replaces the default flame.
+
+## Prerequisites
+
+- Node 18+
+- pnpm (preferred) or npm/yarn/bun
+- An OpenAI API key (`OPENAI_API_KEY`) for GPT-4.1 (set in `.env`).
+
+## Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
-# or
-bun dev
+# open http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Create `.env` in the project root:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+OPENAI_API_KEY=sk-...
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## API route: `/api/chat`
 
-## Learn More
+- Model: `openai('gpt-4.1')`
+- Tools: `queryFirecrawlDocs`
+- stopWhen: `stepCountIs(3)` to allow multi-step tool use (agent behavior)
+- Returns: streamed UI messages with doc links appended when present.
 
-To learn more about Next.js, take a look at the following resources:
+## Docs tool payload (Mintlify)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- URL: `https://leaves.mintlify.com/api/assistant/firecrawl/message`
+- Headers: `Content-Type: application/json`
+- Body (minimal):
+  ```json
+  {
+    "id": "firecrawl",
+    "fp": "firecrawAI",
+    "filter": { "version": "v2" },
+    "messages": [
+      {
+        "id": "user-msg-1",
+        "createdAt": "2025-11-26T13:45:00Z",
+        "role": "user",
+        "content": "Your query",
+        "parts": [{ "type": "text", "text": "Your query" }]
+      }
+    ]
+  }
+  ```
+- Response: streamed `text/plain` with prefixes `f:` (meta), `9:` (tool call), `a:` (tool result), `0:` (assistant text). We collect `0:` for the answer and parse `suggestions` fences from `a:` to surface clickable links.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Important
 
-## Deploy on Vercel
+The Mintlify endpoint is undocumented/internal; it may change or be rate-limited.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## UI details
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Links: Doc suggestions render after the assistant message as a list of anchors.
+- Markdown: Headings, lists, inline code, fenced code, and auto-linked URLs.
+- States: Shows “Thinking…” spinner and doc-search spinner when the tool runs.
+- Assets: Firecrawl logos live in `public/`; the animated inline icon is code-based.
+
+## Deploy
+
+Standard Next.js deploy (e.g., Vercel). Ensure `OPENAI_API_KEY` is set in env.
