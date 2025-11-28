@@ -1,6 +1,6 @@
 # Firecrawl Support Agent
 
-An agentic support assistant for Firecrawl. It runs on Vercel AI SDK (OpenAI GPT‑4.1), autonomously calls a docs search tool to pull live answers from Firecrawl documentation, and streams responses to the UI with markdown, code, and doc links.
+An agentic support assistant for Firecrawl. It runs on Vercel AI SDK (OpenAI GPT‑4.1), autonomously calls a docs search tool to pull live answers from Firecrawl [documentation](https://docs.firecrawl.dev), and streams responses to the UI with markdown, code, and doc links.
 
 ## How it works (agent)
 
