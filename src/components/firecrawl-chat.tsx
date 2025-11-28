@@ -5,7 +5,8 @@ import type React from 'react';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Moon, Sun } from 'lucide-react';
+import { Send, Loader2, Moon, Sun, Github } from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useTheme } from './theme-provider';
@@ -55,18 +56,35 @@ export function FirecrawlChat() {
             </p>
           </div>
         </div>
-        <Button
-          variant='ghost'
-          size='icon'
-          onClick={toggleTheme}
-          className='rounded-lg'
-        >
-          {theme === 'dark' ? (
-            <Sun className='w-5 h-5' />
-          ) : (
-            <Moon className='w-5 h-5' />
-          )}
-        </Button>
+        <div className='flex items-center gap-2'>
+          <Button
+            asChild
+            variant='ghost'
+            size='icon'
+            className='h-10 w-10 rounded-lg border border-border bg-muted/50 hover:bg-muted transition-colors'
+          >
+            <Link
+              href='https://github.com/devhims/firecrawl-support-agent'
+              target='_blank'
+              rel='noreferrer'
+              aria-label='View on GitHub'
+            >
+              <Github className='w-5 h-5' />
+            </Link>
+          </Button>
+          <Button
+            variant='ghost'
+            onClick={toggleTheme}
+            size='icon'
+            className='h-10 w-10 rounded-lg border border-border bg-muted/50 hover:bg-muted transition-colors cursor-pointer'
+          >
+            {theme === 'dark' ? (
+              <Sun className='w-5 h-5' />
+            ) : (
+              <Moon className='w-5 h-5' />
+            )}
+          </Button>
+        </div>
       </header>
 
       {/* Messages */}
