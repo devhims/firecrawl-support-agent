@@ -1,8 +1,7 @@
 'use client';
 
-import type React from 'react';
-
-import { memo, useMemo } from 'react';
+import React, { memo, useMemo } from 'react';
+import { cn } from '@/lib/utils';
 import { useTheme } from './theme-provider';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import {
@@ -73,112 +72,252 @@ interface MarkdownRendererProps {
 export const MarkdownRenderer = memo(function MarkdownRenderer({
   content,
 }: MarkdownRendererProps) {
+  const normalized = useMemo(() => normalizeDocsLinks(content), [content]);
+
   const elements = useMemo(() => {
     const parts: React.ReactNode[] = [];
-    const codeBlockRegex = /```(\w*)\n([\s\S]*?)```/g;
+    // Allow optional leading spaces and Windows newlines.
+    const codeBlockRegex = /```[ \t]*([^\r\n]*)[\r\n]([\s\S]*?)```/g;
     let lastIndex = 0;
     let match;
 
-    while ((match = codeBlockRegex.exec(content)) !== null) {
-      // Add text before code block
+    while ((match = codeBlockRegex.exec(normalized)) !== null) {
       if (match.index > lastIndex) {
-        const textContent = content.slice(lastIndex, match.index);
+        const textContent = normalized.slice(lastIndex, match.index);
         parts.push(
-          <TextContent key={`text-${lastIndex}`} content={textContent} />
+          <BlockContent key={`text-${lastIndex}`} content={textContent} />
         );
       }
 
-      // Add code block
-      parts.push(
-        <CodeBlock
-          key={`code-${match.index}`}
-          language={match[1]}
-          code={match[2]}
-        />
-      );
+      const langRaw = match[1].trim();
+      const lang = langRaw.split(/\s+/)[0] || '';
+      const code = match[2];
+
+      if (lang === 'suggestions') {
+        parts.push(
+          <SuggestionsBlock key={`suggestions-${match.index}`} content={code} />
+        );
+      } else {
+        parts.push(
+          <CodeBlock key={`code-${match.index}`} language={lang} code={code} />
+        );
+      }
 
       lastIndex = match.index + match[0].length;
     }
 
-    // Add remaining text
-    if (lastIndex < content.length) {
+    if (lastIndex < normalized.length) {
       parts.push(
-        <TextContent
+        <BlockContent
           key={`text-${lastIndex}`}
-          content={content.slice(lastIndex)}
+          content={normalized.slice(lastIndex)}
         />
       );
     }
 
     return parts;
-  }, [content]);
+  }, [normalized]);
 
-  return <div className='space-y-1'>{elements}</div>;
+  return <div className='space-y-3'>{elements}</div>;
 });
 
-function TextContent({ content }: { content: string }) {
-  // Process inline code and other markdown
-  const processedContent = useMemo(() => {
-    const parts: React.ReactNode[] = [];
-    const inlineCodeRegex = /`([^`]+)`/g;
-    let lastIndex = 0;
-    let match;
-
-    while ((match = inlineCodeRegex.exec(content)) !== null) {
-      if (match.index > lastIndex) {
-        parts.push(
-          <span key={`text-${lastIndex}`} className='whitespace-pre-wrap'>
-            {processText(content.slice(lastIndex, match.index))}
-          </span>
-        );
-      }
-      parts.push(
-        <code
-          key={`inline-${match.index}`}
-          className='px-1.5 py-0.5 rounded bg-muted font-mono text-sm text-orange-600 dark:text-orange-400'
-        >
-          {match[1]}
-        </code>
-      );
-      lastIndex = match.index + match[0].length;
-    }
-
-    if (lastIndex < content.length) {
-      parts.push(
-        <span key={`text-${lastIndex}`} className='whitespace-pre-wrap'>
-          {processText(content.slice(lastIndex))}
-        </span>
-      );
-    }
-
-    return parts;
-  }, [content]);
-
-  return <>{processedContent}</>;
+function BlockContent({ content }: { content: string }) {
+  const blocks = useMemo(() => parseBlocks(content), [content]);
+  return <div className='space-y-3'>{blocks}</div>;
 }
 
-function processText(text: string): React.ReactNode {
-  // Handle bold text
-  const boldRegex = /\*\*([^*]+)\*\*/g;
+function SuggestionsBlock({ content }: { content: string }) {
+  const lines = content
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  if (lines.length === 0) return null;
+
+  return (
+    <div className='mt-2 border border-border rounded-lg bg-muted/50 px-3 py-2 space-y-1'>
+      <div className='text-xs font-semibold uppercase tracking-wide text-muted-foreground'>
+        Docs links
+      </div>
+      <ul className='space-y-1'>
+        {lines.map((line, idx) => {
+          const linkMatch = /\[([^\]]+)\]\(([^)]+)\)/.exec(line);
+          if (linkMatch) {
+            return (
+              <li key={idx}>
+                <a
+                  href={linkMatch[2]}
+                  target='_blank'
+                  rel='noreferrer'
+                  className='text-sm text-orange-600 dark:text-orange-400 underline underline-offset-2'
+                >
+                  {linkMatch[1]}
+                </a>
+              </li>
+            );
+          }
+          return (
+            <li key={idx} className='text-sm text-foreground'>
+              {line}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function parseBlocks(content: string): React.ReactNode[] {
+  const paragraphs = content.trim().split(/\n\s*\n/);
+
+  return paragraphs.map((block, idx) => {
+    const lines = block.split('\n');
+    const first = lines[0]?.trim() ?? '';
+
+    const headingMatch = /^#{1,6}\s+(.*)$/.exec(first);
+    if (headingMatch) {
+      const level = Math.min(6, first.indexOf(' ') /* number of # */);
+      const text = first.replace(/^#{1,6}\s+/, '');
+      const HeadingTag = `h${level}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
+      return React.createElement(
+        HeadingTag,
+        {
+          key: `h-${idx}`,
+          className: cn(
+            'font-semibold tracking-tight text-foreground',
+            level === 1 && 'text-xl',
+            level === 2 && 'text-lg',
+            level >= 3 && 'text-base'
+          ),
+        },
+        renderInline(text)
+      );
+    }
+
+    const isList = lines.every((line) => /^[-*•]\s+/.test(line.trim()));
+    if (isList) {
+      return (
+        <ul key={`ul-${idx}`} className='list-disc list-inside space-y-1'>
+          {lines.map((line, li) => (
+            <li key={li} className='text-foreground'>
+              {renderInline(line.replace(/^[-*•]\s+/, ''))}
+            </li>
+          ))}
+        </ul>
+      );
+    }
+
+    return (
+      <p key={`p-${idx}`} className='leading-relaxed text-foreground'>
+        {renderInline(block.replace(/\n/g, ' '))}
+      </p>
+    );
+  });
+}
+
+function renderInline(text: string): React.ReactNode {
   const parts: React.ReactNode[] = [];
+  const inlineCodeRegex = /`([^`]+)`/g;
   let lastIndex = 0;
   let match;
 
-  while ((match = boldRegex.exec(text)) !== null) {
+  while ((match = inlineCodeRegex.exec(text)) !== null) {
     if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index));
+      parts.push(processLinksAndBold(text.slice(lastIndex, match.index)));
     }
     parts.push(
-      <strong key={`bold-${match.index}`} className='font-semibold'>
+      <code
+        key={`inline-${match.index}`}
+        className='px-1.5 py-0.5 rounded bg-muted font-mono text-sm text-orange-600 dark:text-orange-400'
+      >
         {match[1]}
-      </strong>
+      </code>
     );
     lastIndex = match.index + match[0].length;
   }
 
   if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
+    parts.push(processLinksAndBold(text.slice(lastIndex)));
   }
 
-  return parts.length > 0 ? parts : text;
+  return parts.flat();
+}
+
+function processLinksAndBold(text: string): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  const regex =
+    /(\[([^\]]+)\]\(([^)]+)\))|(\*\*([^*]+)\*\*)|(https?:\/\/[^\s)\]]+)/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(
+        <span key={`txt-${lastIndex}`} className='whitespace-pre-wrap'>
+          {text.slice(lastIndex, match.index)}
+        </span>
+      );
+    }
+
+    if (match[1]) {
+      const label = match[2];
+      const href = match[3];
+      parts.push(
+        <a
+          key={`link-${match.index}`}
+          href={href}
+          target='_blank'
+          rel='noreferrer'
+          className='text-orange-600 dark:text-orange-400 underline underline-offset-2'
+        >
+          {label}
+        </a>
+      );
+    } else if (match[4]) {
+      parts.push(
+        <strong key={`bold-${match.index}`} className='font-semibold'>
+          {match[5]}
+        </strong>
+      );
+    } else if (match[6]) {
+      const url = match[6];
+      parts.push(
+        <a
+          key={`url-${match.index}`}
+          href={url}
+          target='_blank'
+          rel='noreferrer'
+          className='text-orange-600 dark:text-orange-400 underline underline-offset-2 break-all'
+        >
+          {url}
+        </a>
+      );
+    }
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(
+      <span key={`txt-${lastIndex}`} className='whitespace-pre-wrap'>
+        {text.slice(lastIndex)}
+      </span>
+    );
+  }
+
+  return parts;
+}
+
+function normalizeDocsLinks(text: string): string {
+  // Convert "(Label)[/path]" into proper Markdown links to docs.firecrawl.dev
+  return text.replace(/\(([^)]+)\)\[([^\]]+)\]/g, (_, label, path) => {
+    const cleanPath = String(path).trim();
+    const href =
+      cleanPath.startsWith('http') || cleanPath.startsWith('https')
+        ? cleanPath
+        : `https://docs.firecrawl.dev${
+            cleanPath.startsWith('/') ? '' : '/'
+          }${cleanPath}`;
+    return `[${String(label).trim()}](${href})`;
+  });
 }

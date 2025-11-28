@@ -71,9 +71,23 @@ const queryFirecrawlDocs = tool({
         }
       }
 
+      const { cleanedText, links } = extractSuggestions(assistantText);
+      const enrichedLinks =
+        links.length > 0 ? links : inferLinksFromText(cleanedText);
+
+      const docsSuffix =
+        enrichedLinks.length > 0
+          ? `\n\nDocs:\n${links
+              .map(({ label, href }) => `- [${label}](${href})`)
+              .join('\n')}`
+          : '';
+
+      const finalContent = `${cleanedText}${docsSuffix}`.trim();
+
       return {
         success: true,
-        content: assistantText || 'No response from Firecrawl docs',
+        content: finalContent || 'No response from Firecrawl docs',
+        links: enrichedLinks,
       };
     } catch (error) {
       return {
@@ -86,12 +100,87 @@ const queryFirecrawlDocs = tool({
   },
 });
 
+function extractSuggestions(raw: string): {
+  cleanedText: string;
+  links: { label: string; href: string }[];
+} {
+  if (!raw) return { cleanedText: '', links: [] };
+
+  const suggestionsRegex = /```suggestions[\s\S]*?```/gi;
+  const links: { label: string; href: string }[] = [];
+
+  let cleanedText = raw.replace(suggestionsRegex, (match) => {
+    const inner = match
+      .replace(/```suggestions/i, '')
+      .replace(/```/, '')
+      .trim();
+
+    inner
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .forEach((line) => {
+        // Match [Label](path) or (Label)[path] patterns
+        const mdMatch = /\[([^\]]+)\]\(([^)]+)\)/.exec(line);
+        const altMatch = /\(([^)]+)\)\[([^\]]+)\]/.exec(line);
+
+        const label = mdMatch?.[1] ?? altMatch?.[1];
+        const path = mdMatch?.[2] ?? altMatch?.[2];
+
+        if (label && path) {
+          const href =
+            path.startsWith('http') || path.startsWith('https')
+              ? path
+              : `https://docs.firecrawl.dev${
+                  path.startsWith('/') ? '' : '/'
+                }${path}`;
+          links.push({ label: label.trim(), href });
+        }
+      });
+
+    return '';
+  });
+
+  cleanedText = cleanedText.trim();
+
+  return { cleanedText, links };
+}
+
+function inferLinksFromText(raw: string): { label: string; href: string }[] {
+  if (!raw) return [];
+  const mapping: Record<string, string> = {
+    'advanced scraping guide':
+      'https://docs.firecrawl.dev/advanced-scraping-guide',
+    'scrape api reference':
+      'https://docs.firecrawl.dev/api-reference/endpoint/scrape',
+    'scrape feature': 'https://docs.firecrawl.dev/features/scrape',
+    'javascript sdk documentation':
+      'https://docs.firecrawl.dev/developer-guides/sdk/javascript',
+    'js sdk documentation':
+      'https://docs.firecrawl.dev/developer-guides/sdk/javascript',
+  };
+
+  const lower = raw.toLowerCase();
+  const found: { label: string; href: string }[] = [];
+
+  for (const [label, href] of Object.entries(mapping)) {
+    if (lower.includes(label)) {
+      found.push({
+        label: label.replace(/\b\w/g, (c) => c.toUpperCase()),
+        href,
+      });
+    }
+  }
+
+  return found;
+}
+
 export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
 
   const result = streamText({
     model: openai('gpt-4.1'),
-    system: `You are a helpful Firecrawl support engineer. Your role is to help users with questions about Firecrawl - a web scraping and crawling API.
+    system: `You are a helpful Firecrawl support engineer. Your role is to help users with questions about Firecrawl - a web scraping platform.
 
 When a user asks a question:
 1. Use the queryFirecrawlDocs tool to search the official Firecrawl documentation

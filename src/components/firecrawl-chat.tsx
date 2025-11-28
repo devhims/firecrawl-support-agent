@@ -147,6 +147,46 @@ export function FirecrawlChat() {
                     }
                     return null;
                   })}
+                  {/* Render doc links after the text content for the assistant */}
+                  {message.role === 'assistant' &&
+                    message.parts
+                      .filter(
+                        (part) =>
+                          part.type === 'tool-queryFirecrawlDocs' &&
+                          (part as any).state === 'output-available'
+                      )
+                      .map((part, idx) => {
+                        const output =
+                          (part as any).output as {
+                            links?: { label: string; href: string }[];
+                          };
+                        const links = output?.links ?? [];
+                        if (links.length === 0) return null;
+                        return (
+                          <div
+                            key={`doclinks-${idx}`}
+                            className='mt-3 border border-border rounded-lg bg-muted/50 px-3 py-2 space-y-1'
+                          >
+                            <div className='text-xs font-semibold uppercase tracking-wide text-muted-foreground'>
+                              Docs links
+                            </div>
+                            <ul className='space-y-1'>
+                              {links.map((link, i) => (
+                                <li key={i}>
+                                  <a
+                                    href={link.href}
+                                    target='_blank'
+                                    rel='noreferrer'
+                                    className='text-sm text-orange-600 dark:text-orange-400 underline underline-offset-2'
+                                  >
+                                    {link.label}
+                                  </a>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        );
+                      })}
                 </div>
               </div>
             ))}
