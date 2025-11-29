@@ -8,6 +8,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Moon, Sun, Github } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { Item, ItemContent, ItemGroup, ItemTitle } from '@/components/ui/item';
 import { cn } from '@/lib/utils';
 import { useTheme } from './theme-provider';
 import { MarkdownRenderer } from './markdown-renderer';
@@ -15,8 +16,32 @@ import { FirecrawlLogoIcon } from './firecrawl-logo-icon';
 
 export function FirecrawlChat() {
   const [input, setInput] = useState('');
+  const [showQuickPrompts, setShowQuickPrompts] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { theme, toggleTheme } = useTheme();
+
+  const quickPrompts = [
+    {
+      title: 'What is the difference between the scrape and crawl endpoints?',
+      prompt:
+        'What is the difference between Firecrawl’s scrape and crawl endpoints, and when should I use each?',
+    },
+    {
+      title: 'Which crawl params control scope?',
+      prompt:
+        'Show me crawl examples that set allowedDomains, max pages, depth, and output format.',
+    },
+    {
+      title: 'How do webhooks stream crawl progress?',
+      prompt:
+        'How do I configure webhooks for crawl progress or batch scrape results, and validate signatures?',
+    },
+    {
+      title: 'How do I use the actions property?',
+      prompt:
+        'How do I use the actions property in a Firecrawl crawl to run custom page interactions before scraping?',
+    },
+  ];
 
   const { messages, sendMessage, status } = useChat({
     transport: new DefaultChatTransport({ api: '/api/chat' }),
@@ -36,6 +61,13 @@ export function FirecrawlChat() {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
     sendMessage({ text: input });
+    setInput('');
+  };
+
+  const handleQuickPrompt = (prompt: string) => {
+    if (isLoading) return;
+    setShowQuickPrompts(false);
+    sendMessage({ text: prompt });
     setInput('');
   };
 
@@ -228,7 +260,36 @@ export function FirecrawlChat() {
       </div>
 
       {/* Input */}
-      <div className='border-t border-border px-6 py-4'>
+      <div className='px-6 py-4 space-y-4'>
+        {showQuickPrompts && (
+          <ItemGroup className='grid grid-cols-1 sm:grid-cols-2 gap-2'>
+            {quickPrompts.map((item) => (
+              <Item
+                key={item.title}
+                asChild
+                variant='muted'
+                size='sm'
+                className={cn(
+                  'cursor-pointer border border-border/70 hover:border-orange-500/50 hover:bg-orange-500/10 transition-colors duration-150 h-full min-h-[64px]',
+                  isLoading && 'opacity-60 cursor-not-allowed'
+                )}
+              >
+                <button
+                  type='button'
+                  onClick={() => handleQuickPrompt(item.prompt)}
+                  disabled={isLoading}
+                  className='flex w-full h-full text-left items-center gap-2'
+                >
+                  <ItemContent>
+                    <ItemTitle className='text-foreground'>
+                      {item.title}
+                    </ItemTitle>
+                  </ItemContent>
+                </button>
+              </Item>
+            ))}
+          </ItemGroup>
+        )}
         <form onSubmit={handleSubmit} className='flex gap-3'>
           <input
             type='text'
